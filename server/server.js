@@ -1,39 +1,64 @@
 import express from 'express'
 import 'dotenv/config'
 import cors from 'cors'
-import connectDB from './configs/db.js';
+import mongoose from 'mongoose';
 import adminRouter from './routes/adminRoutes.js';
 import blogRouter from './routes/blogRoutes.js';
-import imagekit from './configs/imagekit.js';
 
 const app=express();
 
-// Database connection with error handling
-let isConnected = false;
-const initDB = async () => {
-  if (!isConnected) {
-    await connectDB();
-    isConnected = true;
+// Configure CORS properly
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// MongoDB connection with caching for serverless
+let cachedDb = null;
+
+const connectDB = async () => {
+  if (cachedDb && mongoose.connection.readyState === 1) {
+    console.log('Using cached database connection');
+    return cachedDb;
+  }
+
+  try {
+    const opts = {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    };
+
+    const conn = await mongoose.connect(process.env.MONGODB_URL, opts);
+    cachedDb = conn;
+    console.log('New database connection established');
+    return conn;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
   }
 };
 
-//middleware
-app.use(cors())
-app.use(express.json())
-
-// Initialize DB before handling requests
+// Connect to DB before handling routes
 app.use(async (req, res, next) => {
   try {
-    await initDB();
+    await connectDB();
     next();
   } catch (error) {
-    console.error('Database connection error:', error);
-    res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+    console.error('DB middleware error:', error);
+    return res.status(503).json({ 
+      success: false, 
+      message: 'Database connection failed' 
+    });
   }
 });
 
 //Routes
-app.get('/',(req,res)=>res.send("API is working"))
+app.get('/',(req,res)=>res.json({ success: true, message: "API is working" }))
 app.use('/api/admin',adminRouter)
 app.use('/api/blog',blogRouter)
 
