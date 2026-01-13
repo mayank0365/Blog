@@ -14,10 +14,22 @@ export const adminLogin=async (req,res)=>{
             });
         }
 
-        if(email!==process.env.ADMIN_EMAIL || 
-            password!=process.env.ADMIN_PASSWORD
-        ){
-            return res.status(401).json({success:false,message:"Invalid Credentials"})
+        // Trim spaces and compare
+        const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
+        const adminPassword = (process.env.ADMIN_PASSWORD || '').trim();
+        
+        console.log('Login attempt:', { 
+            receivedEmail: email, 
+            expectedEmail: adminEmail,
+            emailMatch: email === adminEmail,
+            passwordMatch: password === adminPassword
+        });
+
+        if(email !== adminEmail || password !== adminPassword){
+            return res.status(401).json({
+                success:false,
+                message:"Invalid Credentials"
+            })
         }
 
         const token=jwt.sign({email},process.env.JWT_SECRET, { expiresIn: '7d' });
