@@ -166,16 +166,32 @@ export const getBlogComments=async (req,res)=>{
 export const generateContent=async(req,res)=>{
   try{
     const {prompt}=req.body;
-    const content = await main(prompt+ 'Generate a blog content for this topicin simple text format')
+    
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prompt is required'
+      });
+    }
+
+    // Set timeout for Gemini API call (25 seconds for Vercel)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), 25000)
+    );
+
+    const contentPromise = main(prompt + ' Generate a blog content for this topic in simple text format');
+    
+    const content = await Promise.race([contentPromise, timeoutPromise]);
     
     res.json({
       success:true,content
     })
   }
   catch(error){
-     res.json({
+     console.error('Generate content error:', error);
+     res.status(500).json({
       success:false,
-      message:error.message
+      message: error.message || 'Failed to generate content'
      })
   }
 }

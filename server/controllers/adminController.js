@@ -61,10 +61,22 @@ export const getAllComments=async (req,res)=>{
 
 export const getDashboard=async (req,res)=>{
     try{
-         const recentBlogs=await Blog.find({}).sort({createdAt:-1}).limit(5);
-         const blogs=await Blog.countDocuments();
-         const comments=await Comment.countDocuments();
-         const drafts=await Blog.countDocuments({isPublished:false})
+         // Add timeout for database queries
+         const queryPromises = [
+           Blog.find({}).sort({createdAt:-1}).limit(5),
+           Blog.countDocuments(),
+           Comment.countDocuments(),
+           Blog.countDocuments({isPublished:false})
+         ];
+
+         const timeoutPromise = new Promise((_, reject) => 
+           setTimeout(() => reject(new Error('Database query timeout')), 25000)
+         );
+
+         const [recentBlogs, blogs, comments, drafts] = await Promise.race([
+           Promise.all(queryPromises),
+           timeoutPromise
+         ]);
 
          const dashboardData ={
             blogs,comments,drafts,recentBlogs
@@ -75,9 +87,10 @@ export const getDashboard=async (req,res)=>{
          })
     }
     catch(error){
-         res.json({
+         console.error('Dashboard error:', error);
+         res.status(500).json({
             success:false,
-            message:error.message
+            message:error.message || 'Failed to fetch dashboard data'
          })
     }
 }
