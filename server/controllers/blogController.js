@@ -174,17 +174,15 @@ export const generateContent=async(req,res)=>{
       });
     }
 
-    // Set timeout for Gemini API call (25 seconds for Vercel)
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Request timeout')), 25000)
-    );
+    console.log('Generating content for prompt:', prompt);
 
-    const contentPromise = main(prompt + ' Generate a blog content for this topic in simple text format');
+    const content = await main(prompt + ' Generate a blog content for this topic in simple text format');
     
-    const content = await Promise.race([contentPromise, timeoutPromise]);
+    console.log('Content generated successfully');
     
     res.json({
-      success:true,content
+      success:true,
+      content
     })
   }
   catch(error){
