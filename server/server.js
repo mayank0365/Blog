@@ -11,31 +11,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection for serverless
-let isConnected = false;
-
-const connectDB = async () => {
-  if (isConnected && mongoose.connection.readyState === 1) {
-    return;
-  }
-  
-  try {
-    await mongoose.connect(process.env.MONGODB_URL, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    isConnected = true;
+// Connect to MongoDB once at startup (with connection pooling)
+if (mongoose.connection.readyState === 0) {
+  mongoose.connect(process.env.MONGODB_URL, {
+    bufferCommands: false,
+  }).then(() => {
     console.log('MongoDB connected');
-  } catch (error) {
-    console.error('MongoDB connection failed:', error.message);
-    isConnected = false;
-  }
-};
-
-// Connect before handling any request
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
-});
+  }).catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
+}
 
 //Routes
 app.get('/', (req, res) => res.json({ success: true, message: "API is working" }))
